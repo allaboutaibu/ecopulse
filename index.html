@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EcoPulse | Gamified Sustainability</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;800&family=Fredoka:wght@500;600&display=swap');
+        
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #F5FBF7;
+            color: #134E4A;
+            overflow: hidden;
+        }
+
+        h1, h2, h3, .cartoon-font {
+            font-family: 'Fredoka', sans-serif;
+        }
+
+        /* --- BACKGROUND ATMOSPHERE --- */
+        .bg-noise {
+            position: absolute;
+            inset: 0;
+            opacity: 0.04;
+            z-index: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            pointer-events: none;
+        }
+
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            z-index: -1;
+            opacity: 0.5;
+            animation: floatBlob 25s infinite alternate ease-in-out;
+        }
+        @keyframes floatBlob {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(60px, -40px) scale(1.15); }
+        }
+
+        /* --- REALISTIC TREE & PHYSICS --- */
+        .tree-container {
+            position: absolute;
+            bottom: -40px;
+            right: -80px;
+            width: 500px;
+            height: auto;
+            z-index: 1;
+            pointer-events: none;
+            filter: drop-shadow(0 20px 40px rgba(22, 101, 52, 0.2));
+            transform-origin: bottom center;
+            animation: treeSway 12s ease-in-out infinite;
+        }
+
+        @media (max-width: 1024px) {
+            .tree-container {
+                width: 320px;
+                right: -80px;
+                bottom: -20px;
+                opacity: 0.6;
+            }
+        }
+
+        @keyframes treeSway {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(1.5deg); }
+        }
+        
+        .leaf {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-radius: 2px 70% 2px 70%;
+            opacity: 0;
+            z-index: 2;
+            pointer-events: none;
+            animation: leafFall 10s linear forwards, leafSway 3s ease-in-out infinite alternate;
+            box-shadow: 1px 1px 4px rgba(0,0,0,0.1);
+        }
+
+        @keyframes leafFall {
+            0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+            10% { opacity: 0.9; }
+            80% { opacity: 0.9; }
+            100% { transform: translate(-200px, 100vh) rotate(720deg); opacity: 0; }
+        }
+
+        @keyframes leafSway {
+            from { margin-left: -20px; }
+            to { margin-left: 20px; }
+        }
+
+        /* --- UI COMPONENTS --- */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border-top: 1px solid rgba(255, 255, 255, 0.9);
+            border-left: 1px solid rgba(255, 255, 255, 0.9);
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05), inset 0 0 20px rgba(255, 255, 255, 0.5);
+            border-radius: 2.5rem;
+        }
+
+        /* Collection Grid Items */
+        .collectible-item {
+            aspect-ratio: 1;
+            border-radius: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.5);
+            border: 2px solid white;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        .collectible-item.locked {
+            opacity: 0.5;
+            background: rgba(200,200,200,0.2);
+        }
+        .collectible-item.locked svg {
+            filter: brightness(0) opacity(0.2);
+        }
+        .collectible-item.unlocked {
+            background: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            transform: scale(1);
+        }
+        .collectible-item.unlocked:hover {
+            transform: scale(1.05) translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+        .collectible-badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            font-size: 8px;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 10px;
+            color: white;
+            text-transform: uppercase;
+        }
+        .rarity-common { background: #9CA3AF; }
+        .rarity-rare { background: #3B82F6; }
+        .rarity-legendary { background: #F59E0B; animation: shine 2s infinite; }
+
+        @keyframes shine { 0% { opacity: 0.8; } 50% { opacity: 1; } 100% { opacity: 0.8; } }
+
+        /* Avatar Slider Items - Minimal */
+        .avatar-item {
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            cursor: pointer;
+            opacity: 0.6;
+            transform: scale(0.9);
+            filter: grayscale(100%) opacity(0.7);
+            border-radius: 50%;
+            overflow: hidden;
+            background: white;
+            border: 2px solid transparent;
+        }
+        .avatar-item:hover {
+            opacity: 1;
+            transform: scale(1);
+            filter: grayscale(0%);
+        }
+        .avatar-item.selected {
+            opacity: 1;
+            transform: scale(1.15);
+            filter: grayscale(0%);
+            border-color: #34D399;
+            box-shadow: 0 8px 20px rgba(52, 211, 153, 0.3);
+            z-index: 10;
+        }
+
+        /* Floating Inputs */
+        .floating-input {
+            border: none;
+            border-bottom: 2px solid #E2E8F0;
+            background: transparent;
+            padding: 12px 0;
+            font-size: 1.5rem;
+            width: 100%;
+            text-align: center;
+            font-weight: 700;
+            color: #0F172A;
+            outline: none;
+            transition: all 0.3s;
+            font-family: 'Fredoka', sans-serif;
+            letter-spacing: -0.5px;
+        }
+        .floating-input:focus { border-bottom-color: #10B981; }
+        .floating-input::placeholder { color: transparent; }
+        .floating-label {
+            position: absolute;
+            left: 50%;
+            top: 15px;
+            transform: translateX(-50%);
+            color: #94A3B8;
+            pointer-events: none;
+            transition: all 0.3s ease;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .floating-input:focus ~ .floating-label,
+        .floating-input:not(:placeholder-shown) ~ .floating-label {
+            top: -12px;
+            font-size: 0.7rem;
+            color: #10B981;
+        }
+
+        /* Action Cards */
+        .option-card { 
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); 
+            cursor: pointer; 
+            border: 2px solid transparent; 
+            border-radius: 1.5rem;
+            background: rgba(255, 255, 255, 0.5);
+        }
+        .option-card:hover { 
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.04);
+            transform: translateY(-4px);
+        }
+        .option-card.selected { 
+            border-color: #34D399; 
+            background-color: #ECFDF5; 
+            transform: translateY(0);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+        }
+        
+        .fact-box { transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); max-height: 0; overflow: hidden; opacity: 0; }
+        .fact-box.visible { max-height: 200px; opacity: 1; margin-top: 1rem; }
+
+        /* Scrollbar */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Animations */
+        @keyframes float { 
+            0%, 100% { transform: translateY(0); } 
+            50% { transform: translateY(-10px); } 
+        }
+        .float-anim { animation: float 6s ease-in-out infinite; }
+
+        .animate-enter { 
+            animation: enterUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; 
+            opacity: 0; 
+            transform: translateY(30px); 
+        }
+        @keyframes enterUp { to { opacity: 1; transform: translateY(0); } }
+
+        .stagger-1 { animation-delay: 100ms; }
+        .stagger-2 { animation-delay: 200ms; }
+        .stagger-3 { animation-delay: 300ms; }
+        
+        @keyframes blink { 90%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+        .eye-blink { transform-origin: center; animation: blink 4s infinite; }
+        
+        /* New Reward Animation */
+        @keyframes reveal {
+            0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+            60% { transform: scale(1.2) rotate(10deg); opacity: 1; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+        .animate-reveal { animation: reveal 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+
+        /* Error Feedback Animations */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+        .error-shake { animation: shake 0.4s ease-in-out; }
+        .error-border { border-bottom-color: #EF4444 !important; }
+        .error-label { color: #EF4444 !important; font-weight: 800 !important; }
+    </style>
+</head>
+<body class="w-screen h-screen overflow-hidden bg-[#F1F8F6] relative">
+
+    <!-- Texture Overlay -->
+    <div class="bg-noise"></div>
+
+    <!-- Realistic Lighting Gradients -->
+    <div class="blob bg-emerald-300 w-[800px] h-[800px] top-[-30%] left-[-10%] opacity-20 mix-blend-multiply"></div>
+    <div class="blob bg-lime-200 w-[600px] h-[600px] bottom-[-20%] right-[-10%] opacity-30 mix-blend-multiply animation-delay-2000"></div>
+    <div class="absolute inset-0 bg-white/40 backdrop-blur-[100px] pointer-events-none z-0"></div>
+
+    <!-- Realistic Tree (Volumetric SVG) - Interactive! -->
+    <div class="tree-container" onclick="hugTree(event)">
+        <svg viewBox="0 0 200 300" class="w-full h-full">
+            <defs>
+                <linearGradient id="trunkGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#5D4037" />
+                    <stop offset="40%" stop-color="#8D6E63" />
+                    <stop offset="100%" stop-color="#4E342E" />
+                </linearGradient>
+                <radialGradient id="leafGrad1" cx="30%" cy="30%" r="70%">
+                    <stop offset="0%" stop-color="#86EFAC" />
+                    <stop offset="100%" stop-color="#16A34A" />
+                </radialGradient>
+                <radialGradient id="leafGrad2" cx="30%" cy="30%" r="70%">
+                    <stop offset="0%" stop-color="#4ADE80" />
+                    <stop offset="100%" stop-color="#15803D" />
+                </radialGradient>
+                <filter id="foliageShadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+                    <feOffset dx="0" dy="4" result="offsetblur"/>
+                    <feComponentTransfer><feFuncA type="linear" slope="0.3"/></feComponentTransfer>
+                    <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+            </defs>
+            <path d="M95 300 L95 220 Q95 180 70 140 Q105 160 115 220 L115 300 Z" fill="url(#trunkGrad)"/>
+            <g filter="url(#foliageShadow)">
+                <circle cx="60" cy="110" r="45" fill="url(#leafGrad2)"/>
+                <circle cx="140" cy="120" r="45" fill="url(#leafGrad2)"/>
+                <circle cx="100" cy="80" r="55" fill="url(#leafGrad1)"/>
+                <circle cx="100" cy="140" r="50" fill="url(#leafGrad2)"/>
+            </g>
+        </svg>
+        <div id="leaf-spawner" class="absolute top-20 left-1/2 w-1 h-1"></div>
+        <div id="click-effect-container" class="absolute inset-0 pointer-events-none"></div>
+    </div>
+
+    <!-- Main App Layer -->
+    <div id="main-content" class="absolute inset-0 z-10 flex flex-col">
+        
+        <!-- Header -->
+        <header class="w-full px-8 py-6 flex justify-between items-center z-50">
+            <div class="flex items-center gap-4 cursor-pointer group" onclick="goHome()">
+                <div class="w-12 h-12 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-emerald-500 shadow-sm border border-white/50 group-hover:scale-105 transition-transform duration-300">
+                    <i class="fas fa-leaf text-xl"></i>
+                </div>
+                <h1 class="font-extrabold text-2xl text-emerald-900 tracking-tight hidden sm:block group-hover:text-emerald-600 transition-colors">EcoPulse</h1>
+            </div>
+            
+            <div id="user-display" class="hidden flex items-center gap-4 bg-white/60 backdrop-blur-md pl-1 pr-5 py-1.5 rounded-full shadow-sm border border-white/40 animate-enter">
+                <div id="header-avatar" class="w-9 h-9 rounded-full overflow-hidden bg-white border-2 border-white shadow-sm flex items-center justify-center p-1"></div>
+                <div class="flex flex-col items-start leading-none gap-0.5">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Streak</span>
+                    <div class="flex items-center gap-1.5 text-orange-500">
+                        <i class="fas fa-fire text-xs"></i>
+                        <span id="header-streak" class="font-black text-sm text-slate-800">0</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- VIEW: Onboarding -->
+        <div id="view-onboarding" class="flex-1 flex flex-col items-center justify-center p-6 relative overflow-y-auto">
+            
+            <div class="w-full max-w-lg flex flex-col items-center text-center z-10">
+                
+                <h2 class="text-4xl font-black text-emerald-900 mb-8 cartoon-font tracking-wide animate-enter drop-shadow-sm">Choose Your Pal</h2>
+
+                <!-- Main Avatar Preview -->
+                <div class="relative mb-14 group animate-enter stagger-1">
+                    <div class="absolute -inset-12 bg-gradient-to-tr from-emerald-300 to-teal-100 rounded-full blur-3xl opacity-30 group-hover:opacity-50 transition duration-1000"></div>
+                    
+                    <div class="w-52 h-52 bg-white rounded-full shadow-[0_25px_60px_-15px_rgba(0,0,0,0.1)] flex items-center justify-center border-[8px] border-white relative float-anim overflow-hidden" id="login-avatar-display">
+                        <!-- SVG Injected Here -->
+                    </div>
+                    
+                    <div class="absolute -bottom-5 left-1/2 transform -translate-x-1/2 bg-white/80 backdrop-blur-md text-emerald-800 px-6 py-2 rounded-full shadow-lg font-bold text-xs border border-white tracking-widest uppercase">
+                        Select Character
+                    </div>
+                </div>
+
+                <!-- Input -->
+                <div class="mb-16 w-full max-w-[280px] relative animate-enter stagger-2">
+                    <div class="floating-input-group">
+                        <input type="text" id="username-input" class="floating-input" placeholder=" ">
+                        <label class="floating-label">USERNAME</label>
+                    </div>
+                </div>
+
+                <!-- Slider -->
+                <div class="w-full mb-12 animate-enter stagger-2">
+                    <div class="flex justify-center items-center gap-6 py-4" id="avatar-slider">
+                        <!-- Avatars -->
+                    </div>
+                </div>
+
+                <!-- Button -->
+                <button onclick="completeOnboarding()" class="px-16 py-5 bg-emerald-900 text-white font-bold rounded-full shadow-2xl hover:bg-emerald-800 hover:shadow-emerald-900/30 transform transition hover:-translate-y-1 active:scale-95 text-lg tracking-wide flex items-center gap-3 animate-enter stagger-3">
+                    Start Journey <i class="fas fa-arrow-right text-sm opacity-70"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- VIEW: Dashboard -->
+        <div id="view-dashboard" class="hidden flex-1 p-6 md:px-12 md:pb-12 overflow-y-auto">
+            <div class="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-8 h-full">
+                
+                <!-- Left: Stats -->
+                <div class="lg:col-span-4 flex flex-col gap-6 animate-enter">
+                    <div class="glass-card p-8 relative overflow-hidden group">
+                        <div class="absolute inset-0 bg-gradient-to-tr from-white/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition duration-700 pointer-events-none"></div>
+                        
+                        <div class="relative z-10 text-center">
+                            <div id="dash-avatar-display" class="w-32 h-32 bg-white rounded-full mx-auto mb-5 shadow-2xl border-[6px] border-white overflow-hidden p-2 flex items-center justify-center"></div>
+                            
+                            <h2 class="text-3xl font-black cartoon-font text-emerald-900 mb-1" id="dash-username">User</h2>
+                            <span class="inline-block bg-emerald-100/50 text-emerald-700 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest mb-8 border border-emerald-100">Eco Initiate</span>
+                            
+                            <div class="grid grid-cols-2 gap-4 w-full">
+                                <div class="bg-white/60 p-4 rounded-3xl border border-white shadow-sm">
+                                    <p class="text-[10px] font-bold text-slate-400 uppercase mb-1 tracking-wider">Streak</p>
+                                    <span class="text-3xl font-black text-slate-800" id="dash-streak">0</span>
+                                </div>
+                                <div class="bg-white/60 p-4 rounded-3xl border border-white shadow-sm">
+                                    <p class="text-[10px] font-bold text-slate-400 uppercase mb-1 tracking-wider">XP</p>
+                                    <span class="text-3xl font-black text-emerald-600" id="dash-points">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="quote-container" class="glass-card p-6 md:p-8 bg-gradient-to-br from-amber-50/80 to-orange-50/80 stagger-1 animate-enter border-amber-100">
+                        <div class="flex items-center gap-3 mb-3">
+                            <i class="fas fa-quote-left text-amber-400 text-2xl"></i>
+                            <span class="text-xs font-bold text-amber-600 uppercase tracking-widest">Quote of the Day</span>
+                        </div>
+                        <p id="daily-quote" class="text-slate-700 font-medium italic leading-relaxed text-lg">Loading inspiration...</p>
+                    </div>
+                </div>
+
+                <!-- Right: Actions -->
+                <div class="lg:col-span-8 flex flex-col gap-6 stagger-2 animate-enter">
+                    <div class="flex items-center justify-between px-2">
+                        <h3 class="text-2xl font-bold text-slate-800 tracking-tight">Overview</h3>
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-widest bg-white/50 px-3 py-1 rounded-full" id="date-display">TODAY</span>
+                    </div>
+
+                    <!-- Main Action -->
+                    <button onclick="startCheckIn()" id="btn-checkin" class="w-full glass-card p-10 hover:bg-white transition-all group text-left relative overflow-hidden transform hover:-translate-y-1">
+                        <div class="absolute right-0 top-0 h-full w-2 bg-emerald-400 opacity-50"></div>
+                        <div class="flex items-center gap-8 relative z-10">
+                            <div class="w-20 h-20 rounded-3xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-3xl group-hover:scale-110 transition duration-300 shadow-inner border border-emerald-100">
+                                <i class="fas fa-plus"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-black text-emerald-900 text-2xl mb-1">Log Daily Habits</h4>
+                                <p class="text-slate-500 font-medium">Complete to unlock a random sticker!</p>
+                            </div>
+                            <div class="w-12 h-12 rounded-full border-2 border-slate-100 flex items-center justify-center text-slate-300 group-hover:border-emerald-500 group-hover:text-emerald-500 transition bg-white">
+                                <i class="fas fa-arrow-right"></i>
+                            </div>
+                        </div>
+                    </button>
+
+                    <div id="completed-msg" class="hidden w-full glass-card p-10 text-center bg-white/80">
+                        <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                            <i class="fas fa-check text-2xl"></i>
+                        </div>
+                        <h4 class="font-black text-slate-800 text-xl">Daily Log Complete</h4>
+                        <p class="text-slate-500 mt-1">See you tomorrow!</p>
+                    </div>
+
+                    <!-- Collection Grid -->
+                    <div class="glass-card p-8 flex flex-col bg-white/60 mb-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h4 class="font-bold text-slate-700 text-sm uppercase tracking-wider">My Collection</h4>
+                            <span class="text-xs font-bold text-emerald-600" id="collection-count">0/12</span>
+                        </div>
+                        <div class="grid grid-cols-4 md:grid-cols-6 gap-3 overflow-y-auto max-h-[300px] no-scrollbar pr-2" id="collection-grid">
+                            <!-- Stickers injected here -->
+                        </div>
+                    </div>
+
+                    <!-- History (Restored) -->
+                    <div class="flex-1 glass-card p-8 flex flex-col bg-white/60">
+                        <div class="flex justify-between items-center mb-6">
+                            <h4 class="font-bold text-slate-700 text-sm uppercase tracking-wider">Recent Activity</h4>
+                            <button onclick="resetApp()" class="text-xs font-bold text-red-300 hover:text-red-500 transition px-3 py-1 rounded hover:bg-red-50">CLEAR DATA</button>
+                        </div>
+                        <div id="history-list" class="space-y-3 overflow-y-auto flex-1 max-h-[300px] no-scrollbar pr-2">
+                            <!-- Items -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: Checklist Overlay -->
+        <div id="view-checkin" class="hidden absolute inset-0 z-50 bg-white/90 backdrop-blur-3xl flex flex-col animate-enter">
+            <div class="max-w-3xl mx-auto w-full h-full flex flex-col">
+                <div class="px-8 py-8 flex items-center justify-between">
+                    <button onclick="goHome()" class="w-12 h-12 rounded-full hover:bg-gray-100 text-slate-400 hover:text-slate-800 flex items-center justify-center transition"><i class="fas fa-arrow-left text-xl"></i></button>
+                    <div class="flex flex-col items-end">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Progress</span>
+                        <div class="flex items-center gap-3">
+                            <div class="w-40 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                <div id="progress-bar" class="h-full bg-emerald-500 transition-all duration-500 w-0"></div>
+                            </div>
+                            <span class="font-bold text-slate-800 text-sm" id="progress-text">0/10</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="question-container" class="flex-1 overflow-y-auto px-8 pb-32 space-y-8 no-scrollbar">
+                    <!-- Cards injected here -->
+                </div>
+
+                <div class="p-8 flex justify-center pb-12 bg-gradient-to-t from-white via-white to-transparent">
+                    <button onclick="submitCheckIn()" id="submit-btn" disabled class="px-20 py-5 bg-emerald-600 text-white font-bold rounded-full shadow-2xl hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 text-lg flex items-center gap-3">
+                        Complete <i class="fas fa-check"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: Results -->
+        <div id="view-results" class="hidden absolute inset-0 z-50 bg-white/95 backdrop-blur-xl flex flex-col items-center justify-center p-8 overflow-y-auto animate-enter">
+            <div class="max-w-md w-full text-center">
+                <!-- Reward Reveal Container -->
+                <div id="reward-container" class="mb-10 relative h-48 flex items-center justify-center">
+                    <div class="absolute inset-0 bg-yellow-200 rounded-full blur-3xl opacity-20 animate-pulse"></div>
+                    <div id="reward-icon" class="w-40 h-40 rounded-3xl bg-white shadow-2xl border-4 border-yellow-100 flex items-center justify-center text-8xl animate-reveal relative z-10">
+                        <!-- Sticker injected here -->
+                    </div>
+                    <div class="absolute -top-4 -right-4 bg-yellow-400 text-yellow-900 font-black text-xs px-3 py-1 rounded-full shadow-lg uppercase tracking-wider animate-bounce" id="reward-badge">New!</div>
+                </div>
+                
+                <h2 class="text-4xl font-black mb-2 cartoon-font text-slate-800 animate-enter stagger-1">You Found a Seed!</h2>
+                <p class="text-slate-500 mb-8 text-lg font-medium animate-enter stagger-2" id="reward-text">It bloomed into a Rare Sticker!</p>
+
+                <div id="result-summary" class="bg-emerald-50 rounded-2xl p-6 mb-8 text-left animate-enter stagger-3 border border-emerald-100">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-bold text-emerald-800 uppercase tracking-wide">Daily Score</span>
+                        <span class="text-2xl font-black text-emerald-600" id="result-xp">+150 XP</span>
+                    </div>
+                    <div class="w-full bg-emerald-200 h-2 rounded-full overflow-hidden">
+                        <div class="bg-emerald-500 h-full w-full"></div>
+                    </div>
+                </div>
+
+                <div id="remediation-box" class="hidden w-full bg-orange-50 p-6 rounded-2xl text-left mb-8 shadow-sm border border-orange-100 animate-enter stagger-3">
+                    <p class="text-xs font-bold text-orange-400 uppercase tracking-widest mb-2">Growth Opportunity</p>
+                    <p id="remediation-text" class="text-orange-900 font-bold text-lg leading-snug"></p>
+                </div>
+
+                <button onclick="goHome()" class="w-full bg-slate-900 text-white font-bold py-5 rounded-full shadow-xl hover:bg-black transition transform animate-enter stagger-3 text-lg">Add to Collection</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- DATA & ASSETS (MINIMAL CUTE FLAT VECTORS) ---
+        const SVGS = {
+            'Sprout': `<svg viewBox="0 0 100 100" class="w-full h-full bg-emerald-50"><circle cx="50" cy="50" r="40" fill="#4ADE80"/><path d="M50 10 Q70 10 70 30" stroke="#166534" stroke-width="4" fill="none"/><path d="M70 30 Q90 20 80 40 Q60 50 70 30" fill="#22C55E"/><circle cx="35" cy="45" r="4" fill="#1F2937"/><circle cx="65" cy="45" r="4" fill="#1F2937"/><path d="M40 60 Q50 70 60 60" stroke="#1F2937" stroke-width="3" fill="none" stroke-linecap="round"/></svg>`,
+            'Splash': `<svg viewBox="0 0 100 100" class="w-full h-full bg-blue-50"><path d="M50 15 Q85 60 85 70 A35 35 0 0 1 15 70 Q15 60 50 15" fill="#3B82F6"/><circle cx="35" cy="65" r="4" fill="white"/><circle cx="65" cy="65" r="4" fill="white"/><circle cx="35" cy="65" r="1.5" fill="#1E3A8A"/><circle cx="65" cy="65" r="1.5" fill="#1E3A8A"/><path d="M45 75 Q50 78 55 75" stroke="#1E40AF" stroke-width="2" fill="none"/></svg>`,
+            'Spark': `<svg viewBox="0 0 100 100" class="w-full h-full bg-orange-50"><circle cx="50" cy="50" r="40" fill="#FBBF24"/><path d="M50 5 L55 15 M95 50 L85 55 M50 95 L45 85 M5 50 L15 45 M15 15 L25 25 M85 85 L75 75 M15 85 L25 75 M85 15 L75 25" stroke="#F59E0B" stroke-width="4" stroke-linecap="round"/><circle cx="35" cy="45" r="4" fill="#78350F"/><circle cx="65" cy="45" r="4" fill="#78350F"/><path d="M40 60 L60 60" stroke="#78350F" stroke-width="3" stroke-linecap="round"/></svg>`,
+            'Gust': `<svg viewBox="0 0 100 100" class="w-full h-full bg-sky-50"><path d="M20 60 Q20 40 40 40 Q45 20 65 25 Q85 15 90 40 Q95 60 70 60 Z" fill="#E0F2FE" stroke="#0EA5E9" stroke-width="3"/><circle cx="45" cy="50" r="2.5" fill="#0369A1"/><circle cx="65" cy="50" r="2.5" fill="#0369A1"/><path d="M55 55 Q60 58 65 55" stroke="#0369A1" stroke-width="2" fill="none"/></svg>`,
+            'Petal': `<svg viewBox="0 0 100 100" class="w-full h-full bg-pink-50"><circle cx="50" cy="20" r="12" fill="#F472B6"/><circle cx="80" cy="50" r="12" fill="#F472B6"/><circle cx="50" cy="80" r="12" fill="#F472B6"/><circle cx="20" cy="50" r="12" fill="#F472B6"/><circle cx="50" cy="50" r="30" fill="#FCE7F3"/><circle cx="35" cy="45" r="3" fill="#831843"/><circle cx="65" cy="45" r="3" fill="#831843"/><path d="M45 55 Q50 60 55 55" stroke="#831843" stroke-width="2" fill="none"/></svg>`,
+            'Pebble': `<svg viewBox="0 0 100 100" class="w-full h-full bg-gray-50"><rect x="25" y="35" width="50" height="40" rx="15" fill="#9CA3AF"/><rect x="35" y="25" width="15" height="15" rx="5" fill="#9CA3AF" transform="rotate(-15 42 32)"/><circle cx="40" cy="50" r="3" fill="#374151"/><circle cx="60" cy="50" r="3" fill="#374151"/><rect x="42" y="60" width="16" height="4" rx="2" fill="#374151"/></svg>`
+        };
+        const AVATARS = Object.keys(SVGS);
+
+        // --- STICKERS COLLECTION (SVG ICONS) ---
+        const STICKERS = [
+            { id: 's1', name: 'Oak Leaf', rarity: 'common', svg: '<svg viewBox="0 0 24 24" fill="#16A34A"><path d="M17.5,1.5c-2.4,0-3.5,1.7-4.5,3.2c-1,1.5-1.9,2.9-4,2.9c-0.6,0-1.1-0.1-1.6-0.3L7,7.8C6.9,7.9,6.7,8,6.6,8c-0.2,0-0.3-0.1-0.4-0.2c-0.2-0.2-0.2-0.5,0-0.7l0.4-0.4C5.4,5.4,3.7,5.5,2.6,6.6c-2.3,2.3-0.6,7.6,3.8,11.9c4.3,4.3,9.6,6.1,11.9,3.8c1.1-1.1,1.2-2.8,0.1-4l-0.4,0.4c-0.2,0.2-0.5,0.2-0.7,0c-0.2-0.2-0.2-0.5,0-0.7l0.4-0.4c-0.2-0.5-0.3-1-0.3-1.6c0-2.1,1.4-3,2.9-4C21.8,9.9,23.5,8.9,23.5,6.5C23.5,3.7,20.8,1.5,17.5,1.5z"/></svg>' },
+            { id: 's2', name: 'Dew Drop', rarity: 'common', svg: '<svg viewBox="0 0 24 24" fill="#3B82F6"><path d="M12,22c4.97,0,9-4.03,9-9c0-4.97-9-13-9-13S3,8.03,3,13C3,17.97,7.03,22,12,22z"/></svg>' },
+            { id: 's3', name: 'River Stone', rarity: 'common', svg: '<svg viewBox="0 0 24 24" fill="#9CA3AF"><path d="M16,6c-1.38,0-2.67,0.38-3.8,1.04C11.3,6.37,10.18,6,9,6C4.58,6,1,9.58,1,14c0,2.5,1.15,4.73,2.97,6.26C5.12,21.36,6.51,22,8,22h8c2.76,0,5-2.24,5-5S18.76,6,16,6z"/></svg>' },
+            { id: 's4', name: 'Red Shroom', rarity: 'common', svg: '<svg viewBox="0 0 24 24" fill="#EF4444"><path d="M12,2c-5.52,0-10,3.58-10,8s4.48,8,10,8s10-3.58,10-8S17.52,2,12,2z M12,22c-1.1,0-2-0.9-2-2v-4h4v4C14,21.1,13.1,22,12,22z"/></svg>' },
+            { id: 's5', name: 'Wild Flower', rarity: 'rare', svg: '<svg viewBox="0 0 24 24" fill="#EC4899"><path d="M12,2c-1.66,0-3,1.34-3,3s1.34,3,3,3s3-1.34,3-3S13.66,2,12,2z M6,12c0,1.66,1.34,3,3,3s3-1.34,3-3s-1.34-3-3-3S6,10.34,6,12z M12,16c-1.66,0-3,1.34-3,3s1.34,3,3,3s3-1.34,3-3S13.66,16,12,16z M18,12c0-1.66-1.34-3-3-3s-3,1.34-3,3s1.34,3,3,3S18,13.66,18,12z M12,10c-1.1,0-2,0.9-2,2s0.9,2,2,2s2-0.9,2-2S13.1,10,12,10z"/></svg>' },
+            { id: 's6', name: 'Pine Cone', rarity: 'rare', svg: '<svg viewBox="0 0 24 24" fill="#92400E"><path d="M12,2C8.69,2,6,4.69,6,8c0,1.66,0.67,3.16,1.76,4.24C7.22,12.78,6.86,13.36,6.86,14c0,1.66,1.34,3,3,3c0.55,0,1.05-0.22,1.41-0.59C11.55,16.78,11.89,17,12.24,17c0.28,0,0.53-0.11,0.73-0.29C13.33,16.89,13.64,17,14,17c1.66,0,3-1.34,3-3c0-0.64-0.36-1.22-0.9-1.76C17.33,11.16,18,9.66,18,8C18,4.69,15.31,2,12,2z"/></svg>' },
+            { id: 's7', name: 'Blue Beetle', rarity: 'rare', svg: '<svg viewBox="0 0 24 24" fill="#1D4ED8"><path d="M12,2C8.13,2,5,5.13,5,9c0,2.38,1.19,4.47,3,5.74V22h8v-7.26c1.81-1.27,3-3.36,3-5.74C19,5.13,15.87,2,12,2z M12,12c-1.66,0-3-1.34-3-3s1.34-3,3-3s3,1.34,3,3S13.66,12,12,12z"/></svg>' },
+            { id: 's8', name: 'Crystal', rarity: 'rare', svg: '<svg viewBox="0 0 24 24" fill="#8B5CF6"><path d="M12,2L3,8v8l9,6l9-6V8L12,2z M12,17c-1.66,0-3-1.34-3-3s1.34-3,3-3s3,1.34,3,3S13.66,17,12,17z"/></svg>' },
+            { id: 's9', name: 'Golden Seed', rarity: 'legendary', svg: '<svg viewBox="0 0 24 24" fill="#F59E0B"><path d="M12,2C6.48,2,2,6.48,2,12c0,5.52,4.48,10,10,10s10-4.48,10-10C22,6.48,17.52,2,12,2z M12,20c-4.41,0-8-3.59-8-8c0-4.41,3.59-8,8-8s8,3.59,8,8C20,16.41,16.41,20,12,20z M11,7h2v6h-2V7z M11,15h2v2h-2V15z"/></svg>' },
+            { id: 's10', name: 'Rainbow', rarity: 'legendary', svg: '<svg viewBox="0 0 24 24" fill="#6366F1"><path d="M12,4c-4.97,0-9,4.03-9,9h18C21,8.03,16.97,4,12,4z M12,6c3.86,0,7,3.14,7,7h-2c0-2.76-2.24-5-5-5s-5,2.24-5,5H5C5,9.14,8.14,6,12,6z"/></svg>' },
+            { id: 's11', name: 'Earth Spirit', rarity: 'legendary', svg: '<svg viewBox="0 0 24 24" fill="#10B981"><circle cx="12" cy="12" r="10"/><path d="M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10s10-4.48,10-10S17.52,2,12,2z M10,17l-5-5l1.41-1.41L10,14.17l7.59-7.59L19,8L10,17z" fill="white"/></svg>' }
+        ];
+
+        const QUESTION_DATA = [
+            {
+                id: 'bath',
+                icon: 'fa-shower',
+                options: [{ text: 'Cold/Bucket', type: 'green', score: 3 }, { text: 'Quick Warm', type: 'yellow', score: 2 }, { text: 'Long Hot', type: 'red', score: 1 }],
+                variations: [
+                    { text: 'Shower Habit', fact: "Heating water is the #1 energy consumer." },
+                    { text: 'Water Usage?', fact: "A 10-minute shower uses 25 gallons of water." },
+                    { text: 'How did you bathe?', fact: "Cold showers can improve circulation and save energy." }
+                ]
+            },
+            {
+                id: 'commute',
+                icon: 'fa-bicycle',
+                options: [{ text: 'Walk/Cycle', type: 'green', score: 3 }, { text: 'Bus/Pool', type: 'yellow', score: 2 }, { text: 'Solo Car', type: 'red', score: 1 }],
+                variations: [
+                    { text: 'Commute', fact: "Buses remove 50 cars from the road." },
+                    { text: 'Travel Mode?', fact: "Cycling emits 0g of CO2 per mile." },
+                    { text: 'Getting Around', fact: "Carpooling saves 1,600 lbs of GHG annually." }
+                ]
+            },
+            {
+                id: 'diet',
+                icon: 'fa-carrot',
+                options: [{ text: 'Plant-Based', type: 'green', score: 3 }, { text: 'Mixed', type: 'yellow', score: 2 }, { text: 'Red Meat', type: 'red', score: 1 }],
+                variations: [
+                    { text: 'Diet Today', fact: "Beef needs 28x more land than chicken." },
+                    { text: 'Meals?', fact: "Plant-based diets cut carbon footprint by 73%." },
+                    { text: 'What did you eat?', fact: "Livestock produces 14.5% of global emissions." }
+                ]
+            },
+            {
+                id: 'food_waste',
+                icon: 'fa-trash',
+                options: [{ text: 'None', type: 'green', score: 3 }, { text: 'Scraps', type: 'yellow', score: 2 }, { text: 'Threw Meal', type: 'red', score: 1 }],
+                variations: [
+                    { text: 'Food Waste', fact: "Food waste creates potent methane gas." },
+                    { text: 'Leftovers?', fact: "30% of all food produced is wasted." },
+                    { text: 'Plate Check', fact: "Composting scraps returns nutrients to soil." }
+                ]
+            },
+            {
+                id: 'bags',
+                icon: 'fa-shopping-bag',
+                options: [{ text: 'Reusable', type: 'green', score: 3 }, { text: 'No Bag', type: 'yellow', score: 2 }, { text: 'New Plastic', type: 'red', score: 1 }],
+                variations: [
+                    { text: 'Shopping', fact: "Plastic bags last 500 years." },
+                    { text: 'Bag Check', fact: "Reusing bags saves 12 million barrels of oil." },
+                    { text: 'Grocery Run?', fact: "Plastic kills 1 million marine animals yearly." }
+                ]
+            },
+            {
+                id: 'digital',
+                icon: 'fa-wifi',
+                options: [{ text: 'WiFi', type: 'green', score: 3 }, { text: '4G/5G', type: 'yellow', score: 2 }, { text: '4K Mobile', type: 'red', score: 1 }],
+                variations: [
+                    { text: 'Streaming', fact: "Mobile data uses 4x more energy than WiFi." },
+                    { text: 'Data Usage', fact: "Data centers use 3% of global electricity." },
+                    { text: 'Screen Time?', fact: "Lowering brightness saves significant battery." }
+                ]
+            },
+            {
+                id: 'phantom',
+                icon: 'fa-plug',
+                options: [{ text: 'Unplugged', type: 'green', score: 3 }, { text: 'Some On', type: 'yellow', score: 2 }, { text: 'All Plugged', type: 'red', score: 1 }],
+                variations: [
+                    { text: 'Plugs', fact: "Phantom power costs billions annually." },
+                    { text: 'Standby?', fact: "Electronics use energy even when off." },
+                    { text: 'Vampire Power', fact: "Unplugging saves 10% on your bill." }
+                ]
+            },
+            {
+                id: 'sleep',
+                icon: 'fa-moon',
+                options: [{ text: 'Fan Only', type: 'green', score: 3 }, { text: 'AC 24°C', type: 'yellow', score: 2 }, { text: 'AC 18°C', type: 'red', score: 1 }],
+                variations: [
+                    { text: 'AC Usage', fact: "Each degree below 24°C adds 6% energy." },
+                    { text: 'Night Mode', fact: "Fans use 1% of the energy of AC." },
+                    { text: 'Sleep Temp', fact: "Cooler nights mean higher bills." }
+                ]
+            },
+            {
+                id: 'hydration',
+                icon: 'fa-tint',
+                options: [{ text: 'Reusable Bottle', type: 'green', score: 3 }, { text: 'Glass/Cup', type: 'yellow', score: 2 }, { text: 'Single-Use Plastic', type: 'red', score: 1 }],
+                variations: [
+                    { text: 'Hydration', fact: "91% of plastic isn't recycled." },
+                    { text: 'Water Bottle?', fact: "Making a plastic bottle uses 3x the water inside." },
+                    { text: 'Drink Check', fact: "Microplastics are found in 93% of bottled water." }
+                ]
+            },
+            {
+                id: 'lights',
+                icon: 'fa-lightbulb',
+                options: [{ text: 'Natural Light', type: 'green', score: 3 }, { text: 'LEDs', type: 'yellow', score: 2 }, { text: 'Incandescent', type: 'red', score: 1 }],
+                variations: [
+                    { text: 'Lighting', fact: "LEDs use 75% less energy than incandescent." },
+                    { text: 'Room Brightness', fact: "Daylight is free and boosts mood." },
+                    { text: 'Switch Check', fact: "Lighting is 15% of home electricity use." }
+                ]
+            }
+        ];
+
+        let state = {
+            user: JSON.parse(localStorage.getItem('ecopulse_user')) || null,
+            history: JSON.parse(localStorage.getItem('ecopulse_history')) || [],
+            tempAnswers: {},
+            selectedAvatar: 'Sprout',
+            dailyQuestions: []
+        };
+
+        // --- PARTICLE SYSTEM (LEAVES) ---
+        function spawnLeaf() {
+            const spawner = document.getElementById('leaf-spawner');
+            if(!spawner) return;
+            const leaf = document.createElement('div');
+            leaf.classList.add('leaf');
+            const size = Math.random() * 8 + 6; 
+            const colors = ['#4ADE80', '#22C55E', '#16A34A', '#86EFAC'];
+            leaf.style.width = `${size}px`;
+            leaf.style.height = `${size}px`;
+            leaf.style.background = colors[Math.floor(Math.random() * colors.length)];
+            leaf.style.left = `${Math.random() * 300 - 150}px`; 
+            leaf.style.animationDuration = `${Math.random() * 5 + 8}s`; 
+            spawner.appendChild(leaf);
+            setTimeout(() => { leaf.remove(); }, 12000);
+        }
+        setInterval(spawnLeaf, 600);
+
+        // --- TREE INTERACTION ---
+        function hugTree(e) {
+            e.stopPropagation();
+            const container = document.getElementById('click-effect-container');
+            const heart = document.createElement('div');
+            heart.classList.add('heart-particle', 'fa', 'fa-heart');
+            heart.style.left = (e.clientX - container.getBoundingClientRect().left) + 'px';
+            heart.style.top = (e.clientY - container.getBoundingClientRect().top) + 'px';
+            container.appendChild(heart);
+            
+            // Visual shake
+            const tree = document.querySelector('.tree-container');
+            tree.style.transform = 'scale(1.02)';
+            setTimeout(() => tree.style.transform = '', 100);
+
+            setTimeout(() => heart.remove(), 1500);
+        }
+
+        // --- DYNAMIC QUESTION GENERATOR ---
+        function getDailyQuestions() {
+            const date = new Date();
+            const dayIndex = date.getDate(); 
+            return QUESTION_DATA.map(q => {
+                const vIndex = dayIndex % q.variations.length;
+                return { ...q, text: q.variations[vIndex].text, fact: q.variations[vIndex].fact };
+            });
+        }
+
+        // --- APP LOGIC ---
+        function init() {
+            renderAvatarSelection();
+            const dateDisplay = document.getElementById('date-display');
+            if(dateDisplay) dateDisplay.innerText = new Date().toLocaleDateString(undefined, {weekday:'long', month:'short', day:'numeric'}).toUpperCase();
+            
+            state.dailyQuestions = getDailyQuestions();
+
+            if (state.user) showDashboard();
+            else showOnboarding();
+        }
+
+        function renderAvatarSelection() {
+            const container = document.getElementById('avatar-slider');
+            if(!container) return;
+            container.innerHTML = '';
+            AVATARS.forEach(id => {
+                const div = document.createElement('div');
+                div.className = `avatar-item w-16 h-16 flex-shrink-0 flex items-center justify-center transition-transform`;
+                div.onclick = () => selectAvatar(id, div);
+                div.innerHTML = SVGS[id];
+                container.appendChild(div);
+            });
+            if(container.children.length > 0) selectAvatar('Sprout', container.children[0]);
+        }
+
+        function selectAvatar(id, el) {
+            state.selectedAvatar = id;
+            document.querySelectorAll('.avatar-item').forEach(e => e.classList.remove('selected'));
+            if(el) el.classList.add('selected');
+            const preview = document.getElementById('login-avatar-display');
+            if(preview) preview.innerHTML = SVGS[id];
+        }
+
+        function completeOnboarding() {
+            const input = document.getElementById('username-input');
+            const name = input.value.trim();
+            
+            if(!name) {
+                // Visual Error Feedback
+                const group = input.parentElement;
+                const label = group.querySelector('.floating-label');
+                
+                group.classList.add('error-shake');
+                input.classList.add('error-border');
+                label.classList.add('error-label');
+                const originalText = label.innerText;
+                label.innerText = "NAME REQUIRED!";
+                
+                setTimeout(() => {
+                    group.classList.remove('error-shake');
+                    input.classList.remove('error-border');
+                    label.classList.remove('error-label');
+                    label.innerText = originalText;
+                    input.focus();
+                }, 1500);
+                return;
+            }
+            
+            state.user = { name, avatar: state.selectedAvatar, points: 0, collection: [] }; // Init collection
+            localStorage.setItem('ecopulse_user', JSON.stringify(state.user));
+            showDashboard();
+        }
+
+        function showOnboarding() {
+            hideAllViews();
+            document.getElementById('view-onboarding').classList.remove('hidden');
+            selectAvatar(state.selectedAvatar);
+        }
+
+        function showDashboard() {
+            hideAllViews();
+            document.getElementById('view-dashboard').classList.remove('hidden');
+            document.getElementById('user-display').classList.remove('hidden');
+            
+            const av = SVGS[state.user.avatar];
+            document.getElementById('header-avatar').innerHTML = av;
+            document.getElementById('dash-avatar-display').innerHTML = av;
+            document.getElementById('dash-username').innerText = state.user.name;
+            document.getElementById('dash-points').innerText = state.user.points || 0;
+            
+            let streak = 0;
+            for(let h of state.history) { if(h.color !== 'red') streak++; else break; }
+            document.getElementById('header-streak').innerText = streak;
+            document.getElementById('dash-streak').innerText = streak;
+            
+            const today = new Date().toDateString();
+            const done = state.history.some(h => new Date(h.date).toDateString() === today);
+            
+            if(done) {
+                document.getElementById('btn-checkin').classList.add('hidden');
+                document.getElementById('completed-msg').classList.remove('hidden');
+            } else {
+                document.getElementById('btn-checkin').classList.remove('hidden');
+                document.getElementById('completed-msg').classList.add('hidden');
+            }
+            
+            renderCollection();
+            renderHistory();
+            
+            const quotes = [
+                "Small acts, multiplied by millions, transform the world. — Howard Zinn",
+                "There is no Planet B. — Unknown",
+                "Be the change you wish to see in the world. — Mahatma Gandhi",
+                "Sustainability is no longer about doing less harm. It's about doing more good. — Jochen Zeitz",
+                "The Earth is what we all have in common. — Wendell Berry",
+                "Time spent among trees is never time wasted. — Katrina Mayer",
+                "He that plants trees loves others besides himself. — Thomas Fuller",
+                "Nature does not hurry, yet everything is accomplished. — Lao Tzu",
+                "The environment is where we all meet; where we all have a mutual interest. — Lady Bird Johnson",
+                "We do not inherit the earth from our ancestors, we borrow it from our children. — Native American Proverb",
+                "The greatest threat to our planet is the belief that someone else will save it. — Robert Swan"
+            ];
+            
+            const todayStr = new Date().toDateString();
+            let hash = 0;
+            for (let i = 0; i < todayStr.length; i++) { hash = todayStr.charCodeAt(i) + ((hash << 5) - hash); }
+            const index = Math.abs(hash) % quotes.length;
+            document.getElementById('daily-quote').innerText = quotes[index];
+        }
+
+        function renderCollection() {
+            const grid = document.getElementById('collection-grid');
+            const countDisplay = document.getElementById('collection-count');
+            grid.innerHTML = '';
+            
+            const collectedIds = state.user.collection || [];
+            countDisplay.innerText = `${collectedIds.length}/${STICKERS.length}`;
+
+            STICKERS.forEach(s => {
+                const isUnlocked = collectedIds.includes(s.id);
+                const item = document.createElement('div');
+                item.className = `collectible-item ${isUnlocked ? 'unlocked' : 'locked'}`;
+                
+                let content = isUnlocked ? s.svg : s.svg; // SVG is same, CSS filters opacity
+                
+                if (isUnlocked) {
+                    content += `<div class="collectible-badge rarity-${s.rarity}">${s.rarity[0]}</div>`;
+                }
+
+                item.innerHTML = content;
+                grid.appendChild(item);
+            });
+        }
+
+        function startCheckIn() {
+            hideAllViews();
+            document.getElementById('view-checkin').classList.remove('hidden');
+            state.tempAnswers = {};
+            renderQuestions();
+            updateProgress();
+        }
+
+        function renderQuestions() {
+            const container = document.getElementById('question-container');
+            container.innerHTML = '';
+            const currentQues = state.dailyQuestions;
+
+            currentQues.forEach((q, idx) => {
+                const card = document.createElement('div');
+                card.className = "glass-card p-6 animate-enter";
+                card.style.animationDelay = `${idx * 50}ms`;
+                
+                let html = `
+                    <div class="flex items-center gap-4 mb-5">
+                        <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg shadow-sm">
+                            <i class="fas ${q.icon}"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-800 text-lg">${q.text}</h4>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                `;
+                q.options.forEach(opt => {
+                    html += `
+                        <div onclick="selectOption('${q.id}', '${opt.type}', this)" class="option-card p-4 text-center font-bold text-sm text-slate-600 flex flex-col justify-center items-center gap-2 h-20" data-qid="${q.id}">
+                            ${opt.text}
+                        </div>`;
+                });
+                html += `</div>
+                    <div id="fact-${q.id}" class="fact-box bg-orange-50 border-l-4 border-orange-300 p-4 text-xs text-orange-900 rounded-r-lg mt-3 shadow-sm">
+                        <span class="font-bold uppercase tracking-wider text-[10px] block mb-1">Did you know?</span> ${q.fact}
+                    </div>`;
+                card.innerHTML = html;
+                container.appendChild(card);
+            });
+        }
+
+        function selectOption(qId, type, el) {
+            const parent = el.parentElement;
+            parent.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected', 'text-emerald-800'));
+            el.classList.add('selected', 'text-emerald-800');
+            state.tempAnswers[qId] = type;
+            const fact = document.getElementById(`fact-${qId}`);
+            if(type === 'red') fact.classList.add('visible'); else fact.classList.remove('visible');
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const done = Object.keys(state.tempAnswers).length;
+            const total = state.dailyQuestions.length;
+            const pct = (done/total) * 100;
+            document.getElementById('progress-bar').style.width = `${pct}%`;
+            document.getElementById('progress-text').innerText = `${done}/${total}`;
+            document.getElementById('submit-btn').disabled = done < total;
+        }
+
+        function submitCheckIn() {
+            let score = 0;
+            let reds = [];
+            state.dailyQuestions.forEach(q => {
+                const type = state.tempAnswers[q.id];
+                if(type === 'green') score += 3;
+                else if(type === 'yellow') score += 2;
+                else { score += 1; reds.push({text:q.text, fact:q.fact}); }
+            });
+            
+            const max = state.dailyQuestions.length * 3;
+            const pct = (score/max)*100;
+            let color = pct >= 80 ? 'green' : (pct >= 50 ? 'yellow' : 'red');
+            let earnedXP = Math.floor(score * 5);
+            
+            // --- GACHA REWARD LOGIC ---
+            // Filter stickers user doesn't have yet (prefer new ones)
+            const owned = state.user.collection || [];
+            let pool = STICKERS.filter(s => !owned.includes(s.id));
+            
+            // If collected all, just pick random rare/legendary as duplicate
+            if(pool.length === 0) pool = STICKERS; 
+            
+            // Simple rarity weighting could go here, for now random from available
+            const reward = pool[Math.floor(Math.random() * pool.length)];
+            
+            // Save
+            if(!state.user.collection) state.user.collection = [];
+            if(!state.user.collection.includes(reward.id)) state.user.collection.push(reward.id);
+            
+            state.user.points = (state.user.points || 0) + earnedXP;
+            state.history.unshift({ date: new Date().toISOString(), color, reds, xp: earnedXP });
+            localStorage.setItem('ecopulse_user', JSON.stringify(state.user));
+            localStorage.setItem('ecopulse_history', JSON.stringify(state.history));
+            
+            showResults(color, reds, earnedXP, reward);
+        }
+
+        function showResults(color, reds, xp, reward) {
+            hideAllViews();
+            document.getElementById('view-results').classList.remove('hidden');
+            
+            // Reward Display
+            document.getElementById('reward-icon').innerHTML = reward.svg;
+            document.getElementById('reward-text').innerHTML = `You found a <span class="font-bold uppercase text-${reward.rarity === 'common' ? 'gray-500' : (reward.rarity === 'rare' ? 'blue-500' : 'amber-500')}">${reward.rarity}</span> ${reward.name}!`;
+            document.getElementById('reward-badge').className = `absolute -top-4 -right-4 text-white font-black text-xs px-3 py-1 rounded-full shadow-lg uppercase tracking-wider animate-bounce ${reward.rarity === 'common' ? 'bg-gray-400' : (reward.rarity === 'rare' ? 'bg-blue-500' : 'bg-amber-500')}`;
+
+            document.getElementById('result-xp').innerText = `+${xp} XP`;
+            
+            const remBox = document.getElementById('remediation-box');
+            if(reds.length > 0) {
+                remBox.classList.remove('hidden');
+                document.getElementById('remediation-text').innerText = "Try changing: " + reds[0].text;
+            } else {
+                remBox.classList.add('hidden');
+            }
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('history-list');
+            list.innerHTML = '';
+            if(state.history.length === 0) list.innerHTML = '<div class="text-center text-slate-400 py-8 italic text-sm">No adventures logged yet.</div>';
+            
+            state.history.slice(0,5).forEach(h => {
+                const date = new Date(h.date).toLocaleDateString(undefined, {month:'short', day:'numeric'});
+                const styles = { green: 'bg-emerald-50 text-emerald-700', yellow: 'bg-yellow-50 text-yellow-700', red: 'bg-red-50 text-red-700' };
+                list.innerHTML += `
+                    <div class="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-50 hover:shadow-sm transition animate-enter">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full ${styles[h.color]} flex items-center justify-center text-xs"><i class="fas fa-circle"></i></div>
+                            <div>
+                                <span class="font-bold text-slate-700 block text-sm">${date}</span>
+                                <span class="text-[10px] text-emerald-600 font-bold uppercase tracking-wide">+${h.xp || 0} XP</span>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-black uppercase ${styles[h.color]} px-2 py-1 rounded-md tracking-wider">${h.color}</span>
+                    </div>`;
+            });
+        }
+
+        function hideAllViews() {
+            ['view-onboarding', 'view-dashboard', 'view-checkin', 'view-results'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+        }
+
+        function goHome() {
+            if(state.user) showDashboard();
+            else showOnboarding();
+        }
+
+        function resetApp() {
+            if(confirm("Reset all data?")) { localStorage.clear(); location.reload(); }
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
